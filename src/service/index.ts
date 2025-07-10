@@ -1,11 +1,9 @@
 import Request from './request'
+import { BASE_URL, TIMEOUT } from './config'
 
-const request = new Request({
-  baseURL: 'http://localhost:3000',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+const myRequest = new Request({
+  baseURL: BASE_URL,
+  timeout: TIMEOUT,
 })
 
-export default request
+export default myRequest
