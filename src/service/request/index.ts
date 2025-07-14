@@ -1,22 +1,6 @@
 import axios from 'axios'
-import type {
-  AxiosInstance,
-  AxiosRequestConfig,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
-} from 'axios'
-
-interface myInterceptor {
-  requestSuccessFn?: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig
-  requestFailureFn?: (error: any) => any
-  responseSuccessFn?: (res: AxiosResponse) => AxiosResponse
-  responseFailureFn?: (error: any) => any
-}
-
-// 针对特定请求的拦截器类型
-interface myAxiosRequestConfig extends AxiosRequestConfig {
-  interceptors?: myInterceptor
-}
+import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
+import type { myAxiosRequestConfig } from './type'
 
 class Request {
   instance: AxiosInstance
@@ -38,7 +22,7 @@ class Request {
     this.instance.interceptors.response.use(
       (res) => {
         console.log('全局响应拦截器')
-        return res
+        return res.data
       },
       (error) => {
         console.log('全局响应拦截器错误')
@@ -46,7 +30,7 @@ class Request {
       },
     )
 
-    // 针对特定请求的拦截器
+    // 针对特定axios实例的拦截器
     if (config.interceptors) {
       this.instance.interceptors.request.use(
         config.interceptors.requestSuccessFn,
@@ -60,32 +44,41 @@ class Request {
     }
   }
 
-  request(config: AxiosRequestConfig) {
-    return this.instance.request(config)
+  request<T = any>(config: myAxiosRequestConfig<T>): Promise<T> {
+    // 如果config中存在请求拦截器，则使用拦截器
+    if (config.interceptors?.requestSuccessFn) {
+      config = config.interceptors.requestSuccessFn(config as InternalAxiosRequestConfig) // 类型断言，将config转换为InternalAxiosRequestConfig类型
+    }
+
+    return new Promise<T>((resolve, reject) => {
+      this.instance
+        .request<any, T>(config)
+        .then((res) => {
+          if (config.interceptors?.responseSuccessFn) {
+            res = config.interceptors.responseSuccessFn(res)
+          }
+          resolve(res)
+        })
+        .catch((err) => {
+          reject(err)
+        })
+    })
   }
 
-  get(url: string, config: AxiosRequestConfig) {
-    return this.instance.get(url, config)
+  get<T = any>(config: myAxiosRequestConfig<T>) {
+    return this.request<T>({ ...config, method: 'GET' })
   }
 
-  post(url: string, data: any, config: AxiosRequestConfig) {
-    return this.instance.post(url, data, config)
+  post<T = any>(config: myAxiosRequestConfig<T>) {
+    return this.request<T>({ ...config, method: 'POST' })
   }
 
-  put(url: string, data: any, config: AxiosRequestConfig) {
-    return this.instance.put(url, data, config)
+  delete<T = any>(config: myAxiosRequestConfig<T>) {
+    return this.request<T>({ ...config, method: 'DELETE' })
   }
 
-  delete(url: string, config: AxiosRequestConfig) {
-    return this.instance.delete(url, config)
-  }
-
-  patch(url: string, data: any, config: AxiosRequestConfig) {
-    return this.instance.patch(url, data, config)
-  }
-
-  postForm(url: string, data: any, config: AxiosRequestConfig) {
-    return this.instance.postForm(url, data, config)
+  patch<T = any>(config: myAxiosRequestConfig<T>) {
+    return this.request<T>({ ...config, method: 'PATCH' })
   }
 }
 
